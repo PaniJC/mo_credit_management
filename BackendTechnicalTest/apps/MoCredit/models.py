@@ -1,17 +1,15 @@
 from django.db import models
 
 class Customers(models.Model):
-    id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     external_id = models.CharField(max_length=60, unique=True)
     status = models.SmallIntegerField()
     score = models.DecimalField(max_digits=12, decimal_places=2)
-    preapproved = models.DateTimeField(auto_now_add=True)
+    preapproved_at = models.DateTimeField(auto_now_add=True)
     pass
 
 class Loans(models.Model):
-    id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     external_id = models.CharField(max_length=60, unique=True)
@@ -25,7 +23,6 @@ class Loans(models.Model):
     pass
 
 class Payments(models.Model):
-    id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     external_id = models.CharField(max_length=60, unique=True)
@@ -36,7 +33,6 @@ class Payments(models.Model):
     pass
 
 class PaymentsDetail(models.Model):
-    id = models.IntegerField(primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     amount = models.DecimalField(max_digits=20, decimal_places=10)

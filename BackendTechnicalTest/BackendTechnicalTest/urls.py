@@ -16,7 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from apps.MoCredit.services.customers_services import create_customer, get_customer_by_external_id
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('customers/create', create_customer, name='create_customer'),
+    path('customers/get_by_external_id', get_customer_by_external_id, name='get_customer_by_external_id')
 ]
