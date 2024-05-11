@@ -15,11 +15,11 @@ class Loans(models.Model):
     external_id = models.CharField(max_length=60, unique=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.SmallIntegerField()
-    contract_version = models.CharField(max_length=30, unique=True)
+    contract_version = models.CharField(max_length=30)
     maximum_payment_date = models.DateTimeField(auto_now_add=True)
     taken_at = models.DateTimeField(auto_now_add=True)
     customer_id = models.ForeignKey(Customers, on_delete=models.CASCADE, to_field='id')
-    outstanding_numeric = models.DecimalField(max_digits=12, decimal_places=2)
+    outstanding = models.DecimalField(max_digits=12, decimal_places=2)
     pass
 
 class Payments(models.Model):

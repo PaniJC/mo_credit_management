@@ -67,6 +67,7 @@ def get_customer_by_external_id(request):
 
         except Customers.DoesNotExist:
             return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+        
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
