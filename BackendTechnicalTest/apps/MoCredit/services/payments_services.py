@@ -104,46 +104,62 @@ def create_payment(request):
         
     except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
-
-
     
-def get_loans_by_customer(request):
+def get_payments_by_customer(request):
 
-    external_id = request.GET.get('customer_external_id')
+    customer_external_id = request.GET.get('customer_external_id')
 
-    if external_id is not None:
+    if customer_external_id is not None:
         try:
             # Buscar el cliente por external_id
-            id_customer = Customers.objects.get(external_id=external_id)
-            print(f'El id a buscar --{id_customer.id}--{id_customer.external_id}')
+            id_customer = Customers.objects.get(external_id=customer_external_id)
 
             # Obtener todos los préstamos asociados al cliente
             loans = Loans.objects.filter(customer_id=id_customer.id)
-            print(f'El Loans--{loans}')
-            
-            # Preparar los datos a devolver
-            loans_info = []
+
+            payments_info = []
+            payments_customer =[]
             for loan in loans:
-                loan_info  = {
-                    'external_id': loan.external_id,
-                    'customer_external_id':id_customer.external_id,
-                    'amount':loan.amount,
-                    'outstanding':loan.outstanding,
-                    'status':loan.status
-                }
+                id_loan = loan.id
+                external_id_loan = loan.external_id
 
-                loans_info.append(loan_info)
+                # Obtener todos los préstamos asociados al cliente
+                payments_info = PaymentsDetail.objects.filter(loan_id=id_loan)
 
-            if loans_info != []:
-                return JsonResponse(loans_info, status=200, safe=False)
+                # Obtener todos los préstamos asociados al cliente
+                payment_id = Payments.objects.filter(id=payments_info[0].payment_id.id)
+                actual_payment_id = payment_id[0].external_id
+                actual_payment_status = payment_id[0].status
+
+                for payment_info in payments_info:
+                    payment_detail  = {
+                        'payment_detail_id': payment_info.payment_id.external_id,
+                        'amount':float(payment_info.amount),
+                        'payment_date':payment_info.created_at,
+                    }
+                                    
+                payment_customer  = {
+                        'customer_id': id_customer.external_id,
+                        'loan_id': external_id_loan,
+                        'payment_id': actual_payment_id,
+                        'total_amount':float(payment_info.amount),
+                        'status': actual_payment_status,
+                        'payment_detail': payment_detail,
+                    }
+
+                payments_customer.append(payment_customer)
+
+
+            if payments_customer != []:
+                return JsonResponse(payments_customer, status=200, safe=False)
             else:
-                return JsonResponse({'info': f'El cliente con external_id {external_id} existe, pero no tiene préstamos registrados.'}, status=200, safe=False)
+                return JsonResponse({'info': f'El cliente con external_id existe, pero no tiene préstamos registrados.'}, status=200, safe=False)
 
         except Customers.DoesNotExist as e:
-            return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+            return JsonResponse({'error': f'El cliente con external_id no existe.'}, status=404)
 
         except Customers.UnboundLocalError as e:  
-            return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+            return JsonResponse({'error': f'El cliente con external_id no existe.'}, status=404)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
