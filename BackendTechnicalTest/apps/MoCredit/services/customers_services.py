@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.utils import IntegrityError
-from ..models import Customers
+from ..models import Customers, Loans
 import json
 
 @csrf_exempt
@@ -73,3 +73,41 @@ def get_customer_by_external_id(request):
             return JsonResponse({'error': str(e)}, status=500)
     else:
         return JsonResponse({'error': 'Se requiere el parámetro external_id.'}, status=400)
+
+def get_customer_balance(request):
+    try:
+        # Obtener el external_id de la solicitud GET
+        external_id = request.GET.get('external_id')
+        customer = Customers.objects.get(external_id=external_id)
+        customer_score = customer.score
+
+        if customer.id is not None:
+
+                # Obtener todos los préstamos asociados al cliente
+                loans = Loans.objects.filter(customer_id=customer.id)
+
+                total_debt =0.00
+                for loan in loans:
+                    total_debt += float(loan.outstanding)
+
+                available_amount = float(customer_score) - total_debt
+
+                # Crear el balance con los datos proporcionados
+                customer_balance = {
+                        'external_id': customer.external_id,
+                        'score': float(customer_score),
+                        'available_amount':available_amount,
+                        'total_debt':total_debt
+                    }
+                
+                return JsonResponse(customer_balance, status=200, safe=False)
+                
+        else:
+            return JsonResponse({'error': 'El cliente no existe.'}, status=400)
+
+    except Customers.DoesNotExist as e:
+        return JsonResponse({'error': 'El cliente no existe'}, status=500)
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+

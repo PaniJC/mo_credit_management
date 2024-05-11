@@ -16,14 +16,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from apps.MoCredit.services.customers_services import create_customer, get_customer_by_external_id
+from apps.MoCredit.services.customers_services import create_customer, get_customer_by_external_id,get_customer_balance
 from apps.MoCredit.services.loan_services import create_loan, get_loans_by_customer
+from apps.MoCredit.services.payments_services import create_payment
+
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('customers/create', create_customer, name='create_customer'),
     path('customers/get_by_external_id', get_customer_by_external_id, name='get_customer_by_external_id'),
+    path('customers/get_customer_balance', get_customer_balance, name='get_customer_balance'),
     path('loans/create', create_loan, name='create_loan'),
-    path('loans/get_by_customer', get_loans_by_customer, name='get_loans_by_customer')
+    path('loans/get_by_customer', get_loans_by_customer, name='get_loans_by_customer'),
+    path('payments/create', create_payment, name='create_payment')
 ]

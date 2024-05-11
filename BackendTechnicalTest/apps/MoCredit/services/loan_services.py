@@ -14,21 +14,38 @@ def create_loan(request):
 
         # Obtener el external_id del cliente del JSON
         customer_external_id = data.get('customer_external_id')
+        loan_amount = data.get('amount')
 
         try:
             # Buscar al cliente por su external_id
             customer = get_object_or_404(Customers, external_id=customer_external_id)
+            customer_score = customer.score
 
-            # Crear el préstamo con los datos proporcionados
-            loan = Loans.objects.create(
-                external_id=data.get('external_id'),
-                customer_id=customer,  # Asignar el cliente encontrado como clave foránea
-                amount=data.get('amount'),
-                outstanding=data.get('outstanding'),
-                status=data.get('status')
-            )
+            # Obtener todos los préstamos asociados al cliente
+            loans = Loans.objects.filter(customer_id=customer.id)
 
-            return JsonResponse({'message': 'Préstamo creado correctamente'}, status=201)
+            loans_outstanding_total =0.00
+            for loan in loans:
+                loans_outstanding_total += float(loan.outstanding)
+
+            total_debt = float(loans_outstanding_total) +  float(loan_amount)
+            available_amount = float(customer_score) - total_debt
+
+            if available_amount >= 0.00 :
+
+                # Crear el préstamo con los datos proporcionados
+                loan = Loans.objects.create(
+                    external_id=data.get('external_id'),
+                    customer_id=customer,  # Asignar el cliente encontrado como clave foránea
+                    amount=data.get('amount'),
+                    outstanding=data.get('amount'),
+                    status=data.get('status')
+                )
+
+                return JsonResponse({'message': 'Préstamo creado correctamente'}, status=201)
+            
+            else:
+                return JsonResponse({'info': f'El cliente supera su capacidad de endeudamiento por $: {available_amount}.'}, status=200, safe=False)
 
         except Customers.DoesNotExist:
             return JsonResponse({'error': f'El cliente con external_id {customer_external_id} no existe'}, status=404)
@@ -54,11 +71,9 @@ def get_loans_by_customer(request):
         try:
             # Buscar el cliente por external_id
             id_customer = Customers.objects.get(external_id=external_id)
-            print(f'El id a buscar --{id_customer.id}--{id_customer.external_id}')
 
             # Obtener todos los préstamos asociados al cliente
             loans = Loans.objects.filter(customer_id=id_customer.id)
-            print(f'El Loans--{loans}')
             
             # Preparar los datos a devolver
             loans_info = []
