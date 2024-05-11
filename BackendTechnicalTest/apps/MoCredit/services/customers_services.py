@@ -77,7 +77,7 @@ def get_customer_by_external_id(request):
 def get_customer_balance(request):
     try:
         # Obtener el external_id de la solicitud GET
-        external_id = request.GET.get('external_id')
+        external_id = request.GET.get('customer_external_id')
         customer = Customers.objects.get(external_id=external_id)
         customer_score = customer.score
 

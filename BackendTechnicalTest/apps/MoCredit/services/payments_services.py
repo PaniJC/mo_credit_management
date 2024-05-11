@@ -2,65 +2,110 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.db.utils import IntegrityError
-from ..models import Customers, Loans, Payments
+from ..models import Customers, Loans, Payments, PaymentsDetail
+from ..services import customers_services as cs
 import json
 
 
 @csrf_exempt
 def create_payment(request):
-    if request.method == 'POST':
-        # Obtener los datos del cuerpo de la solicitud POST
-        data = json.loads(request.body)
+    try:
+        if request.method == 'POST':
+            # Obtener los datos del cuerpo de la solicitud POST
+            data = json.loads(request.body)
 
-        # Obtener el external_id del cliente del JSON
-        customer_external_id = data.get('customer_external_id')
-        loan_external_id = data.get('loan_external_id')
-        total_payment = data.get('total_amount')
+            # Obtener el external_id de la solicitud GET
+            customer_external_id = data.get('customer_external_id')
+            customer = Customers.objects.get(external_id=customer_external_id)
 
+            total_amount = data.get('total_amount')
 
-        try:
-            # Buscar al cliente por su external_id
-            customer = get_object_or_404(Customers, external_id=customer_external_id)
-            customer_id = customer.id
-            customer_score = customer.score
+            if customer.id is not None:
 
-            loan = get_object_or_404(Loans, external_id=loan_external_id)
+                    # Obtener todos los préstamos asociados al cliente
+                    loans = Loans.objects.filter(customer_id=customer.id)
 
-            print(f'''EL valor a pagar: {loan.amount}''')
+                    # Validamos si tiene algun prestamo activo
+                    active_loans = False
 
-            if total_payment > customer_score:
-                print(f'''El valor a pagar es mayor al que se adeuda:
-                      Valor adeudado: {customer_score} 
-                      Valor a pagar: {total_payment}''')
+                    for loan in loans:
+                        if loan.status == 2:
+                             active_loans = True
+                             break
+                    
+                    
+                    if active_loans == True:
+                        # Como efectivamente tiene prestamos activos, pasamos a validar si el pago excede el monto de la deuda.
+                        print('Como efectivamente tiene prestamos activos, pasamos a validar si el pago excede el monto de la deuda')
+                        total_debt =0.00
+                        for loan in loans:
+                            total_debt += float(loan.outstanding)
 
-            print(f'El id del cliente {customer_id}')
-            print(f'El score del cliente {customer_score}')
+                        balance = total_amount
+                        if total_amount <= total_debt:
+                            # Como efectivamente tiene prestamos activos, pasamos a validar si el pago excede el monto de la deuda.
+                            print('Lo que va a pagar es menor o igual que la deuda total que tiene.')
+                     
+                            payment = Payments.objects.create(
+                                external_id=data.get('external_id'),
+                                customer_id=customer,  # Asignar el cliente encontrado como clave foránea
+                                total_amount=data.get('total_amount'),
+                                status=1
+                            )
+                            
+                            payments_loan_detail = 0
+                            for loan in loans:
+                                if balance > loan.outstanding:
+                                    payments_loan_detail = loan.outstanding
+                                    loan.outstanding = 0.00
+                                    loan.status = 4
+                                    balance = float(balance) - float(loan.outstanding)
+                                    payment.status = 1
+                                    # Guardar los cambios en la base de datos
+                                    loan.save()
+                                    payment.save()
 
+                                else:
+                                    payments_loan_detail = balance
+                                    loan.outstanding = float(loan.outstanding) - float(balance)
+                                    loan.status = 2
+                                    balance = 0
+                                    payment.status = 1
 
-            # Crear el pago con los datos proporcionados
-            payment = Payments.objects.create(
-                external_id=data.get('external_id'),
-                total_amount=data.get('amount'),
-                status=data.get('status')
-            )
+                                    payment_loan_detail = PaymentsDetail.objects.create(
+                                    amount=payments_loan_detail,
+                                    loan_id=loan,
+                                    payment_id=payment,  # Asignar el cliente encontrado como clave foránea
+                                    )
+                                    # Guardar los cambios en la base de datos
+                                    loan.save()
+                                    payment.save()
+                                    break
 
-            return JsonResponse({'message': 'Pago creado correctamente'}, status=201)
+                            return JsonResponse({'message': 'Pago almacenado exitosamente'}, status=200, safe=False)
+                        
+                        else:
+                            # El pago debe ser rechazado porque es superior a la deuda.
+                            print('El pago debe ser rechazado porque es superior a la deuda.')
+                            payments_loan_detail = balance
+                            loan.status = 2
+                            # Guardar los cambios en la base de datos
+                            loan.save()
+                            return JsonResponse({'message': 'El pago debe ser rechazado porque es superior a la deuda.'}, status=200, safe=False)
+                        
+                    else:
+                        return JsonResponse({'message': 'El pago es rechazado porque el cliente no tiene prestamos activos'}, status=400)
+                    
+            else:
+                return JsonResponse({'error': 'El cliente no existe.'}, status=400)
 
-        except Customers.DoesNotExist:
-            return JsonResponse({'error': f'El cliente con external_id {customer_external_id} no existe'}, status=404)
+    except Customers.DoesNotExist as e:
+            return JsonResponse({'error': 'El cliente no existe'}, status=500)
         
-        except IntegrityError as e:
-            # Capturar el external_id que causa el error de integridad única
-            external_id = data.get('external_id')
-            error_message = f'No se pudo crear el pago. El external_id "{external_id}" ya existe.' 
-            return JsonResponse({'error': error_message}, status=400)
-
-        except Exception as e:
+    except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
-    else:
-        # Manejar el caso en que el método de solicitud no sea POST
-        return JsonResponse({'error': 'Se espera una solicitud POST'}, status=405)
+
     
 def get_loans_by_customer(request):
 
