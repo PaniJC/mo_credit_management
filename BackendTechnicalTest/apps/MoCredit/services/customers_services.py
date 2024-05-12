@@ -1,61 +1,61 @@
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.db.utils import IntegrityError
 from ..models import Customers, Loans
 import json
 
-@csrf_exempt
-def create_customer(request):
+def create_customer(request) -> JsonResponse:
+    
     if request.method == 'POST':
-        # Obtener los datos del cuerpo de la solicitud POST
+
+        # Get the data from the body of the POST request
         data = json.loads(request.body)
 
         try:
-
-            # Verificar si el status es igual a 1
+            # Validate that the input variable they are providing indicates that the user's state will be active
             if data.get('status') != 1:
-                return JsonResponse({'error': 'El usuario debe ser creado con status Activo (1).'}, status=400)
+                return JsonResponse({'error': 'The user must be created with Active status (1).'}, status=400)
             
-            # Verificar si el score es numérico y mayor a cero.
+            # Verify that the Score is numerical and greater than zero. TODO, a minimum limit can be set for the Score.
             if not isinstance(data.get('score'), (int, float)) or data.get('score') <= 0:
-                return JsonResponse({'error': 'El score debe ser numérico y mayor a cero.'}, status=400)
+                return JsonResponse({'error': 'The score must be numerical and greater than zero.'}, status=400)
             
             score = data.get('score')
             score = '{:.2f}'.format(score)
-            # Crear un nuevo objeto Customer con los datos recibidos
+
+            # Create the JSON object with the data related to the appropriate fields
             customers = Customers(
                 external_id=data.get('external_id'),
                 status=data.get('status'),
                 score=score
             )
 
-            # Guardar el nuevo cliente en la base de datos
+            # Save the new customer in the database
             customers.save()
 
-            # Devolver una respuesta exitosa
-            return JsonResponse({'message': 'Cliente creado exitosamente'}, status=201)
+            # Return status 201 indicating the success of the transaction in the DB
+            return JsonResponse({'message': 'Customer created successfully'}, status=201)
         
         except IntegrityError as e:
-            # Capturar el external_id que causa el error de integridad única
             external_id = data.get('external_id')
-            error_message = f'No se pudo crear el cliente. El external_id "{external_id}" ya existe.'   
+            error_message = f'The client could not be created. The external_id "{external_id}" already exists.'   
             
         return JsonResponse({'error': error_message}, status=400)
         
     else:
-        # Si no es una solicitud POST, devolver un error
-        return JsonResponse({'error': 'Se espera una solicitud POST para crear un(os) cliente(s)'}, status=400)
+        return JsonResponse({'error': 'A POST request is expected to create a customer(s)'}, status=400)
     
-def get_customer_by_external_id(request):
-    # Obtener el external_id de la solicitud GET
+def get_customer_by_external_id(request) -> JsonResponse:
+
+    # Obtain the value of the parameter that tells us which customer should be consulted.
     external_id = request.GET.get('external_id')
 
+    # Validate that it actually exists before proceeding
     if external_id is not None:
         try:
-            # Buscar el cliente por external_id
+
             customer = Customers.objects.get(external_id=external_id)
             
-            # Preparar los datos a devolver
+            # Create the JSON to deliver in the response.
             data = {
                 'external_id': customer.external_id,
                 'score': customer.score,
@@ -66,33 +66,38 @@ def get_customer_by_external_id(request):
             return JsonResponse(data, status=200)
 
         except Customers.DoesNotExist:
-            return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+            return JsonResponse({'error': f'The client with external_id {external_id} does not exist.'}, status=404)
         
-
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({'error': str(e)}, status=404)
     else:
-        return JsonResponse({'error': 'Se requiere el parámetro external_id.'}, status=400)
+        return JsonResponse({'error': 'External_id parameter required.'}, status=400)
 
-def get_customer_balance(request):
+def get_customer_balance(request) -> JsonResponse:
     try:
-        # Obtener el external_id de la solicitud GET
+
+        # We start from the external_id of the customer, to generate and present its balance.
         external_id = request.GET.get('customer_external_id')
         customer = Customers.objects.get(external_id=external_id)
         customer_score = customer.score
 
+        # Validate that it actually exists before proceeding
         if customer.id is not None:
 
-                # Obtener todos los préstamos asociados al cliente
+                # Obtain all loans associated with the customer.
                 loans = Loans.objects.filter(customer_id=customer.id)
 
-                total_debt =0.00
+                # Initialize the variable that will store the total owed by the customer.
+                total_debt = 0.00
+
+                # We charge the balance corresponding to the debt of the outstanding amount of the loans you have.
                 for loan in loans:
                     total_debt += float(loan.outstanding)
 
+                # Aassign to this variable the difference between what you were initially approved to lend vs what you owe..
                 available_amount = float(customer_score) - total_debt
 
-                # Crear el balance con los datos proporcionados
+                # Create the object where we will present the corresponding balance
                 customer_balance = {
                         'external_id': customer.external_id,
                         'score': float(customer_score),

@@ -1,29 +1,30 @@
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.db.utils import IntegrityError
 from ..models import Customers, Loans
 import json
 
 
-@csrf_exempt
-def create_loan(request):
+def create_loan(request) -> JsonResponse:
     if request.method == 'POST':
-        # Obtener los datos del cuerpo de la solicitud POST
+
         data = json.loads(request.body)
 
-        # Obtener el external_id del cliente del JSON
+        # Get the external_id of the customer
         customer_external_id = data.get('customer_external_id')
+
+        # Obtain the amount created for the loan and to validate that it is less than the authorized amount
         loan_amount = data.get('amount')
 
         try:
-            # Buscar al cliente por su external_id
+            # Search for the client by its external_id to obtain the score
             customer = get_object_or_404(Customers, external_id=customer_external_id)
             customer_score = customer.score
 
-            # Obtener todos los préstamos asociados al cliente
+            # Load all loans associated with the customer
             loans = Loans.objects.filter(customer_id=customer.id)
 
+            # Calculate if the customer has an available balance and if this is greater than or equal to the requested loan
             loans_outstanding_total =0.00
             for loan in loans:
                 loans_outstanding_total += float(loan.outstanding)
@@ -33,49 +34,50 @@ def create_loan(request):
 
             if available_amount >= 0.00 :
 
-                # Crear el préstamo con los datos proporcionados
+                # Create the loan with the data provided
                 loan = Loans.objects.create(
                     external_id=data.get('external_id'),
-                    customer_id=customer,  # Asignar el cliente encontrado como clave foránea
+                    customer_id=customer,
                     amount=data.get('amount'),
                     outstanding=data.get('amount'),
                     status=data.get('status')
                 )
 
-                return JsonResponse({'message': 'Préstamo creado correctamente'}, status=201)
+                return JsonResponse({'message': 'Loan created successfully.'}, status=201)
             
             else:
-                return JsonResponse({'info': f'El cliente supera su capacidad de endeudamiento por $: {available_amount}.'}, status=200, safe=False)
+                return JsonResponse({'info': f'The client exceeds his debt capacity by $: {available_amount}.'}, status=200, safe=False)
 
         except Customers.DoesNotExist:
-            return JsonResponse({'error': f'El cliente con external_id {customer_external_id} no existe'}, status=404)
+            return JsonResponse({'error': f'The client with external_id {customer_external_id} does not exist.'}, status=404)
         
         except IntegrityError as e:
             # Capturar el external_id que causa el error de integridad única
             external_id = data.get('external_id')
-            error_message = f'No se pudo crear el préstamo. El external_id "{external_id}" ya existe.' 
+            error_message = f'The loan could not be created. The external_id "{external_id}" already exists.' 
             return JsonResponse({'error': error_message}, status=400)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
     else:
-        # Manejar el caso en que el método de solicitud no sea POST
+        # Handle the case where the request method is not POST.
         return JsonResponse({'error': 'Se espera una solicitud POST'}, status=405)
     
-def get_loans_by_customer(request):
+def get_loans_by_customer(request) -> JsonResponse:
 
     external_id = request.GET.get('customer_external_id')
 
     if external_id is not None:
         try:
-            # Buscar el cliente por external_id
+
+            # Search the client by external_id
             id_customer = Customers.objects.get(external_id=external_id)
 
-            # Obtener todos los préstamos asociados al cliente
+            # Get all loans associated with the client
             loans = Loans.objects.filter(customer_id=id_customer.id)
             
-            # Preparar los datos a devolver
+            # Prepare the data to be returned in the response
             loans_info = []
             for loan in loans:
                 loan_info  = {
@@ -91,15 +93,15 @@ def get_loans_by_customer(request):
             if loans_info != []:
                 return JsonResponse(loans_info, status=200, safe=False)
             else:
-                return JsonResponse({'info': f'El cliente con external_id {external_id} existe, pero no tiene préstamos registrados.'}, status=200, safe=False)
+                return JsonResponse({'info': f'The customer with external_id {external_id} exists, but has no loans on file.'}, status=200, safe=False)
 
         except Customers.DoesNotExist as e:
-            return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+            return JsonResponse({'error': f'The client with external_id {external_id} does not exist.'}, status=404)
 
         except Customers.UnboundLocalError as e:  
-            return JsonResponse({'error': f'El cliente con external_id {external_id} no existe.'}, status=404)
+            return JsonResponse({'error': f'The client with external_id {external_id} does not exist.'}, status=404)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     else:
-        return JsonResponse({'error': 'Se requiere el parámetro external_id.'}, status=400)
+        return JsonResponse({'error': 'The external_id parameter is required.'}, status=400)
