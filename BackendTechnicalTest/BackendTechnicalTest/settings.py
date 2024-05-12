@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.MoCredit',
-    'drf_yasg'
+    'drf_yasg',
+    'rest_framework'
 
 ]
 

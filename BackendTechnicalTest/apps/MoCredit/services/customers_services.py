@@ -3,6 +3,7 @@ from django.db.utils import IntegrityError
 from ..models import Customers, Loans
 import json
 
+
 def create_customer(request) -> JsonResponse:
     
     if request.method == 'POST':
@@ -43,7 +44,7 @@ def create_customer(request) -> JsonResponse:
         
     else:
         return JsonResponse({'error': 'A POST request is expected to create a customer(s)'}, status=400)
-    
+
 def get_customer_by_external_id(request) -> JsonResponse:
 
     # Obtain the value of the parameter that tells us which customer should be consulted.
@@ -97,7 +98,7 @@ def get_customer_balance(request) -> JsonResponse:
                 # Aassign to this variable the difference between what you were initially approved to lend vs what you owe..
                 available_amount = float(customer_score) - total_debt
 
-                # Create the object where we will present the corresponding balance
+                
                 customer_balance = {
                         'external_id': customer.external_id,
                         'score': float(customer_score),

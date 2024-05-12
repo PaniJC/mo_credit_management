@@ -4,7 +4,6 @@ from django.db.utils import IntegrityError
 from ..models import Customers, Loans
 import json
 
-
 def create_loan(request) -> JsonResponse:
     if request.method == 'POST':
 
@@ -63,7 +62,7 @@ def create_loan(request) -> JsonResponse:
     else:
         # Handle the case where the request method is not POST.
         return JsonResponse({'error': 'Se espera una solicitud POST'}, status=405)
-    
+
 def get_loans_by_customer(request) -> JsonResponse:
 
     external_id = request.GET.get('customer_external_id')

@@ -90,7 +90,8 @@ def create_payment(request) -> JsonResponse:
         
     except Exception as e:
             return JsonResponse({'error':{e}}, status=500)
-    
+
+
 def get_payments_by_customer(request) -> JsonResponse:
 
     customer_external_id = request.GET.get('customer_external_id')
